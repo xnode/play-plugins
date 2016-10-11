@@ -4,9 +4,9 @@ organization := "com.typesafe.play.plugins"
 
 version := "2.4.0-WALTSU-SNAPSHOT"
 
-scalaVersion := "2.11.1"
+scalaVersion := "2.11.7"
 
-crossScalaVersions := Seq("2.11.1", "2.10.4")
+crossScalaVersions := Seq("2.11.7", "2.11.1", "2.10.4")
 
 resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/"
 
