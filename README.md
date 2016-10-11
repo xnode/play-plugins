@@ -1,3 +1,7 @@
+# Fork note
+
+This fork adds support to Influxdb's tags to Scala side.
+
 # Unsupported Play Plugins
 
 These plugins are not supported by Typesafe and no guarantee is made that they will be maintained or upgraded to new versions of Play in a timely manner.
