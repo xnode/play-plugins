@@ -39,8 +39,8 @@ trait StatsdClient {
    * @param value The amount by which to increment the stat. Defaults to 1.
    * @param samplingRate The probability for which to increment. Defaults to 1.
    */
-  def increment(key: String, value: Long = 1, samplingRate: Double = 1.0) {
-    safely { maybeSend(statFor(key, value, IncrementSuffix, samplingRate), samplingRate) }
+  def increment(key: String, value: Long = 1, samplingRate: Double = 1.0, tags: Map[String, String] = Map.empty) {
+    safely { maybeSend(statFor(key, tags, value, IncrementSuffix, samplingRate), samplingRate) }
   }
 
   /**
@@ -50,8 +50,8 @@ trait StatsdClient {
    * @param millis The number of milliseconds the operation took.
    * @param samplingRate The probability for which to increment. Defaults to 1.
    */
-  def timing(key: String, millis: Long, samplingRate: Double = 1.0) {
-    safely { maybeSend(statFor(key, millis, TimingSuffix, samplingRate), samplingRate) }
+  def timing(key: String, millis: Long, samplingRate: Double = 1.0, tags: Map[String, String] = Map.empty) {
+    safely { maybeSend(statFor(key, tags, millis, TimingSuffix, samplingRate), samplingRate) }
   }
 
   /**
@@ -62,11 +62,11 @@ trait StatsdClient {
    * @param timed An arbitrary block of code to be timed.
    * @return The result of the timed operation.
    */
-  def time[T](key: String, samplingRate: Double = 1.0)(timed: => T): T = {
+  def time[T](key: String, samplingRate: Double = 1.0, tags: Map[String, String] = Map.empty)(timed: => T): T = {
     val start = now()
     val result = timed
     val finish = now()
-    timing(key, finish - start, samplingRate)
+    timing(key, finish - start, samplingRate, tags)
     result
   }
 
@@ -77,8 +77,20 @@ trait StatsdClient {
    * @param value The value to record for the stat.
    */
   def gauge(key: String, value: Long) {
-    safely { maybeSend(statFor(key, value, GaugeSuffix, 1.0), 1.0) }
+    safely { maybeSend(statFor(key, Map.empty[String, String], value, GaugeSuffix, 1.0), 1.0) }
   }
+
+  /**
+    * Record the given value.
+    *
+    * @param key The stat key to update.
+    * @param value The value to record for the stat.
+    */
+  def gauge(key: String, value: Long, tags: Map[String, String]) {
+    safely { maybeSend(statFor(key, tags, value, GaugeSuffix, 1.0), 1.0) }
+  }
+
+
   
   /**
    * Record the given value.
@@ -87,14 +99,33 @@ trait StatsdClient {
    * @param value The value to record for the stat.
    */
   def gauge(key: String, value: Long, delta: Boolean) {
+    val emptyTags = Map.empty[String, String]
   	if (!delta) {
-    	safely { maybeSend(statFor(key, value, GaugeSuffix, 1.0), 1.0) }
+    	safely { maybeSend(statFor(key, emptyTags, value, GaugeSuffix, 1.0), 1.0) }
     } else {
         if (value >= 0) {
-	        safely { maybeSend(statFor(key, "+".concat(value.toString), GaugeSuffix, 1.0), 1.0) }
+	        safely { maybeSend(statFor(key, emptyTags, "+".concat(value.toString), GaugeSuffix, 1.0), 1.0) }
         } else {
-        	safely { maybeSend(statFor(key, value.toString, GaugeSuffix, 1.0), 1.0) }
+        	safely { maybeSend(statFor(key, emptyTags, value.toString, GaugeSuffix, 1.0), 1.0) }
         }		    
+    }
+  }
+
+  /**
+    * Record the given value.
+    *
+    * @param key The stat key to update.
+    * @param value The value to record for the stat.
+    */
+  def gauge(key: String, value: Long, delta: Boolean, tags: Map[String, String] = Map.empty) {
+    if (!delta) {
+      safely { maybeSend(statFor(key, tags, value, GaugeSuffix, 1.0), 1.0) }
+    } else {
+      if (value >= 0) {
+        safely { maybeSend(statFor(key, tags, "+".concat(value.toString), GaugeSuffix, 1.0), 1.0) }
+      } else {
+        safely { maybeSend(statFor(key, tags, value.toString, GaugeSuffix, 1.0), 1.0) }
+      }
     }
   }
 
@@ -110,8 +141,8 @@ trait StatsdClient {
    * For timing, it provides something like {@code key:millis|ms}.
    * If sampling rate is less than 1, it provides something like {@code key:value|type|@rate}
    */
-  private def statFor(key: String, value: Long, suffix: String, samplingRate: Double): String = {
-    statFor(key, value.toString, suffix, samplingRate)
+  private def statFor(key: String, tags: Map[String, String], value: Long, suffix: String, samplingRate: Double): String = {
+    statFor(key, tags, value.toString, suffix, samplingRate)
   }
   
   /*
@@ -120,10 +151,14 @@ trait StatsdClient {
    * For timing, it provides something like {@code key:millis|ms}.
    * If sampling rate is less than 1, it provides something like {@code key:value|type|@rate}
    */
-  private def statFor(key: String, value: String, suffix: String, samplingRate: Double): String = {
+  private def statFor(key: String, tags: Map[String, String], value: String, suffix: String, samplingRate: Double): String = {
+    val parsedTags = tags.isEmpty match {
+      case true => ""
+      case false => s",${tags.map((keyAndValue) => s"${keyAndValue._1}=${keyAndValue._2}")}"
+    }
     samplingRate match {
-      case x if x >= 1.0 => "%s.%s:%s|%s".format(statPrefix, key, value, suffix)
-      case _ => "%s.%s:%s|%s|@%f".format(statPrefix, key, value, suffix, samplingRate)
+      case x if x >= 1.0 => "%s.%s%s:%s|%s".format(statPrefix, key, parsedTags, value, suffix)
+      case _ => "%s.%s%s:%s|%s|@%f".format(statPrefix, key, parsedTags, value, suffix, samplingRate)
     }
   }  
 
