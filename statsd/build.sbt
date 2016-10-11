@@ -2,7 +2,7 @@ name := "play-statsd"
     
 organization := "com.typesafe.play.plugins"
 
-version := "2.3.0"
+version := "2.4.0-WALTSU-SNAPSHOT"
 
 scalaVersion := "2.11.1"
 
