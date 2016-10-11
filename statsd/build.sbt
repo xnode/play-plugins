@@ -30,9 +30,3 @@ javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-Xlint:unchecked", "-e
 scalacOptions += "-deprecation"
   
 lazy val root = project in file(".")
-
-lazy val sample = (project in file("sample/sample-statsd"))
-  .enablePlugins(PlayScala)
-  .settings(
-    Keys.fork in Test := false
-  ).dependsOn(root).aggregate(root)
