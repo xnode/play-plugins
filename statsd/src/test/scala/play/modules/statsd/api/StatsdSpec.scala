@@ -21,7 +21,13 @@ class StatsdSpec extends Specification {
         Statsd.gauge("test", -10, true)
         receive() mustEqual "statsd.test:-10|g"
       }
-    }    
+    }
+    "send gauge value with tags" in new Setup {
+      running(fakeApp) {
+        Statsd.gauge("test", 42, Map("key1" -> "value1", "key2" -> "value2"))
+        receive() mustEqual "statsd.test,key1=value1,key2=value2:42|g"
+      }
+    }
     "send increment by one message" in new Setup {
       running(fakeApp) {
         Statsd.increment("test")
@@ -34,7 +40,13 @@ class StatsdSpec extends Specification {
         receive() mustEqual "statsd.test:10|c"
       }
     }
-    // There is a 0.0001% chance that the following two tests might fail
+    "send increment by more message with tag" in new Setup {
+      running(fakeApp) {
+        Statsd.increment("test", 10, tags = Map("key" -> "value"))
+        receive() mustEqual "statsd.test,key=value:10|c"
+      }
+    }
+    // There is a 0.0001% chance that the following three tests might fail
     "hopefully send a message when sampling rate is only just below 1" in new Setup {
       running(fakeApp) {
         Statsd.increment("test", 10, 0.999999)
@@ -47,10 +59,22 @@ class StatsdSpec extends Specification {
         verifyNothingReceived()
       }
     }
+    "hopefully send a message with tags when sampling rate is only just below 1" in new Setup {
+      running(fakeApp) {
+        Statsd.increment("test", 10, 0.999999, Map("key1" -> "value1", "key2" -> "value2"))
+        receive() mustEqual "statsd.test,key1=value1,key2=value2:10|c|@0.999999"
+      }
+    }
     "send timing message" in new Setup {
       running(fakeApp) {
         Statsd.timing("test", 1234)
         receive() mustEqual "statsd.test:1234|ms"
+      }
+    }
+    "send timing message with tags" in new Setup {
+      running(fakeApp) {
+        Statsd.timing("test", 1234, tags = Map("key" -> "value"))
+        receive() mustEqual "statsd.test,key=value:1234|ms"
       }
     }
     "execute timed function and report" in new Setup {
@@ -61,6 +85,13 @@ class StatsdSpec extends Specification {
         msg must ((_:String).endsWith("|ms"), "incorrect postfix")
         val time = msg.stripPrefix("statsd.test:").stripSuffix("|ms").toInt
         time must be_>=(10)
+      }
+    }
+    "execute timed function with tags" in new Setup {
+      running(fakeApp) {
+        Statsd.time("test", tags = Map("key" -> "value")) { () }
+        val msg = receive()
+        msg must ((_:String).startsWith("statsd.test,key=value:"), "incorrect prefix")
       }
     }
     "return return value of timed function" in new Setup {
