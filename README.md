@@ -1,6 +1,6 @@
 # Fork note
 
-This fork adds support to Influxdb's tags to Scala side.
+This fork adds support to Influxdb's tags to statsd plugin's Scala side.
 
 # Unsupported Play Plugins
 
