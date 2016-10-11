@@ -154,7 +154,7 @@ trait StatsdClient {
   private def statFor(key: String, tags: Map[String, String], value: String, suffix: String, samplingRate: Double): String = {
     val parsedTags = tags.isEmpty match {
       case true => ""
-      case false => s",${tags.map((keyAndValue) => s"${keyAndValue._1}=${keyAndValue._2}")}"
+      case false => s",${tags.map((keyAndValue) => s"${keyAndValue._1}=${keyAndValue._2}").mkString(",")}"
     }
     samplingRate match {
       case x if x >= 1.0 => "%s.%s%s:%s|%s".format(statPrefix, key, parsedTags, value, suffix)
