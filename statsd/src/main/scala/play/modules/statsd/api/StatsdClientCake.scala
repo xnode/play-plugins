@@ -18,7 +18,7 @@ trait StatsdClientCake {
   protected val statPrefix: String
 
   // Used to actually send a stat to statsd.
-  protected val send: Function1[String, Unit]
+  protected def send(stat: String)
 
   // Used to time an operation.
   protected def now(): Long
@@ -74,33 +74,33 @@ private[api] trait RealStatsdClientCake extends StatsdClientCake {
    *
    * If statsd isn't enabled, it will be a noop function.
    */
-  override lazy val send: Function1[String, Unit] = {
+  override def send(stat: String): Unit = {
     try {
       // Check if Statsd sending is enabled.
       val enabled = please.booleanConfig(StatsdEnabledProperty)
       if (enabled) {
-        // Initialize the socket, host, and port to be used to send the data.
-        val socket = new DatagramSocket
-        val hostname = please.config(HostnameProperty)
-        val host = InetAddress.getByName(hostname)
-        val port = please.intConfig(PortProperty)
-
-        // Return the real send function, partially applied with the
-        // socket, host, and port so the client only has to call "send(stat)".
-        socketSend(socket, host, port) _
+        getSocketSender(stat)
       } else {
         Logger.warn("Send will be NOOP because %s is not enabled".format(
           StatsdEnabledProperty))
-        noopSend _
       }
-
     } catch {
       // If there is any error configuring the send function, log a warning
       // but don't throw an error. Use a noop function for all sends.
       case error: Throwable =>
         Logger.warn("Send will NOOP because of configuration problem.", error)
-        noopSend _
     }
+  }
+
+  private lazy val getSocketSender: Function1[String, Unit] = {
+    // Initialize the socket, host, and port to be used to send the data.
+    val socket = new DatagramSocket
+    val hostname = please.config(HostnameProperty)
+    val host = InetAddress.getByName(hostname)
+    val port = please.intConfig(PortProperty)
+    // Return the real send function, partially applied with the
+    // socket, host, and port so the client only has to call "send(stat)".
+    socketSend(socket, host, port) _
   }
 
   /**
