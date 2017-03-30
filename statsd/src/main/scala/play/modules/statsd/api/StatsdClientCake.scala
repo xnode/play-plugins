@@ -8,14 +8,14 @@ import scala.util.Random
 import play.api.Play
 
 /**
- * Configuration trait for the [[play.modules.statsd.api.StatsdClient]].
- *
- * Provides to the client the prefix for all stats sent to statsd and mechanism
- * for sending stats over the network.
- */
+  * Configuration trait for the [[play.modules.statsd.api.StatsdClient]].
+  *
+  * Provides to the client the prefix for all stats sent to statsd and mechanism
+  * for sending stats over the network.
+  */
 trait StatsdClientCake {
   // Used as the prefix for all stats.
-  protected val statPrefix: String
+  protected def statPrefix: String
 
   // Used to actually send a stat to statsd.
   protected def send(stat: String)
@@ -28,12 +28,12 @@ trait StatsdClientCake {
 }
 
 /**
- * Real implementation of [[play.modules.statsd.api.StatsdClientCake]].
- *
- * This implementation:
- * - Reads in values from `conf/application.conf`
- * - Sends stats using a `DatagramSocket` to statsd server.
- */
+  * Real implementation of [[play.modules.statsd.api.StatsdClientCake]].
+  *
+  * This implementation:
+  * - Reads in values from `conf/application.conf`
+  * - Sends stats using a `DatagramSocket` to statsd server.
+  */
 private[api] trait RealStatsdClientCake extends StatsdClientCake {
 
   // The property name for whether or not the statsd sending should be enabled.
@@ -52,28 +52,39 @@ private[api] trait RealStatsdClientCake extends StatsdClientCake {
   private lazy val random = new Random
 
   // The stat prefix used by the client.
-  override val statPrefix = {
-    Play.maybeApplication flatMap { _.configuration.getString(StatPrefixProperty) } getOrElse {
-      Logger.warn("No stat prefix configured, using default of statsd")
-      "statsd"
+  override def statPrefix = getStatsDPrefix
+
+  private var cachedPrefix: Option[String] = None
+
+  private def getStatsDPrefix: String = {
+    cachedPrefix getOrElse {
+      Play.maybeApplication flatMap {
+        val prefix = _.configuration.getString(StatPrefixProperty)
+        prefix match {
+          case Some(statsPrefix) =>
+            cachedPrefix = Some(statsPrefix)
+            statsPrefix
+          case None => "statsd"
+        }
+      }
     }
   }
 
   /**
-   * Use `System.currentTimeMillis()` to get the current time.
-   */
+    * Use `System.currentTimeMillis()` to get the current time.
+    */
   override def now(): Long = System.currentTimeMillis()
 
   /**
-   * Use scala's [[scala.util.Random]] util for `nextFloat`.
-   */
+    * Use scala's [[scala.util.Random]] util for `nextFloat`.
+    */
   override def nextFloat(): Float = random.nextFloat()
 
   /**
-   * Expose a `send` function to the client. It is configured with the hostname and port.
-   *
-   * If statsd isn't enabled, it will be a noop function.
-   */
+    * Expose a `send` function to the client. It is configured with the hostname and port.
+    *
+    * If statsd isn't enabled, it will be a noop function.
+    */
   override def send(stat: String): Unit = {
     try {
       // Check if Statsd sending is enabled.
@@ -104,10 +115,10 @@ private[api] trait RealStatsdClientCake extends StatsdClientCake {
   }
 
   /**
-   * Send the stat in a [[java.net.DatagramPacket]] to statsd.
-   */
+    * Send the stat in a [[java.net.DatagramPacket]] to statsd.
+    */
   private def socketSend(
-    socket: DatagramSocket, host: InetAddress, port: Int)(stat: String) {
+                          socket: DatagramSocket, host: InetAddress, port: Int)(stat: String) {
     try {
       val data = stat.getBytes
       socket.send(new DatagramPacket(data, data.length, host, port))
@@ -117,7 +128,7 @@ private[api] trait RealStatsdClientCake extends StatsdClientCake {
   }
 
   /**
-   * Don't do anything. Used if statsd isn't enabled or on config errors.
-   */
+    * Don't do anything. Used if statsd isn't enabled or on config errors.
+    */
   private def noopSend(stat: String) = Unit
 }

@@ -2,7 +2,7 @@ name := "play-statsd"
     
 organization := "com.typesafe.play.plugins"
 
-version := "2.4.1-XNODE-SNAPSHOT"
+version := "2.4.2-XNODE-SNAPSHOT"
 
 scalaVersion := "2.11.7"
 
