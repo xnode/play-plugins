@@ -52,21 +52,18 @@ private[api] trait RealStatsdClientCake extends StatsdClientCake {
   private lazy val random = new Random
 
   // The stat prefix used by the client.
-  override def statPrefix = getStatsDPrefix
+  override def statPrefix: String = {
+    cachedPrefix.getOrElse(getPrefixFromPlayConfig())
+  }
 
   private var cachedPrefix: Option[String] = None
 
-  private def getStatsDPrefix: String = {
-    cachedPrefix getOrElse {
-      Play.maybeApplication flatMap {
-        val prefix = _.configuration.getString(StatPrefixProperty)
-        prefix match {
-          case Some(statsPrefix) =>
-            cachedPrefix = Some(statsPrefix)
-            statsPrefix
-          case None => "statsd"
-        }
-      }
+  private def getPrefixFromPlayConfig(): String = {
+    Play.maybeApplication match {
+      case Some(app) =>
+        cachedPrefix = app.configuration.getString(StatPrefixProperty)
+        cachedPrefix getOrElse("statsd")
+      case None => "statsd"
     }
   }
 
